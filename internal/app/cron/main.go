@@ -3,6 +3,7 @@ package main
 import (
 	"file/config"
 	"file/infrastructure"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -32,11 +33,11 @@ func main() {
 
 	defer dbSQL.Close()
 
-	timezone, _ := time.LoadLocation("Asia/Jakarta")
-	s := gocron.NewScheduler(timezone)
+	// timezone, _ := time.LoadLocation("Asia/Bangkok")
+	s := gocron.NewScheduler(time.UTC)
 
 	s.Every(1).Day().At("01:30").Do(func() {
-
+		fmt.Println("RUN")
 	})
 
 	s.StartBlocking()

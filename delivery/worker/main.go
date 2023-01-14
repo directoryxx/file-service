@@ -47,7 +47,7 @@ func RunWorker() {
 
 	wg.Add(1)
 
-	go consumerKafkaAuth("auth", kafkaConn, userController, &wg)
+	go consumerKafkaAuth("file", kafkaConn, userController, &wg)
 
 	fmt.Println("Waiting for goroutines to finish...")
 	wg.Wait()

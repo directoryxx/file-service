@@ -11,16 +11,22 @@ WORKDIR /app
 
 RUN CGO_ENABLED=1 go build -tags musl -o ./build/fileApp ./internal/app/api
 
-RUN go build -o ./build/fileAppCron ./internal/app/cron
+RUN CGO_ENABLED=1 go build -tags musl -o ./build/fileAppCron ./internal/app/cron
 
 RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 
 RUN chmod +x /app/build/fileApp
 
+RUN chmod +x /app/build/fileAppCron
+
 # build a tiny docker image
 FROM alpine:latest
 
+RUN apk add supervisor
+
 RUN mkdir /app
+
+COPY ./docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 COPY --from=builder /app/build/fileApp /app
 
@@ -30,4 +36,5 @@ COPY --from=builder /go/bin/migrate /bin/migrate
 
 COPY ./.env /.env
 
-CMD [ "/app/fileApp" ]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
