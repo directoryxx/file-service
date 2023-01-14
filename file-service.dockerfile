@@ -22,7 +22,9 @@ RUN chmod +x /app/build/fileAppCron
 # build a tiny docker image
 FROM alpine:latest
 
-RUN apk add supervisor
+RUN apk add --no-cache supervisor tzdata
+
+ENV TZ=Asia/Jakarta
 
 RUN mkdir /app
 

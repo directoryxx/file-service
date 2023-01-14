@@ -33,10 +33,9 @@ func main() {
 
 	defer dbSQL.Close()
 
-	// timezone, _ := time.LoadLocation("Asia/Bangkok")
-	s := gocron.NewScheduler(time.UTC)
+	s := gocron.NewScheduler(time.Local)
 
-	s.Every(1).Day().At("01:30").Do(func() {
+	s.Every(1).Day().At("21:00").Do(func() {
 		fmt.Println("RUN")
 	})
 
