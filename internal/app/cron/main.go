@@ -1,9 +1,10 @@
 package main
 
 import (
+	"context"
 	"file/config"
 	"file/infrastructure"
-	"fmt"
+	"file/internal/repository"
 	"log"
 	"os"
 	"time"
@@ -33,10 +34,21 @@ func main() {
 
 	defer dbSQL.Close()
 
+	log.Println("[INFO] Loading Minio")
+	minioClient := infrastructure.MinioConnection()
+
+	log.Println("[INFO] Loading Repository")
+	fileRepo := repository.NewFileRepository(dbSQL, minioClient)
+
 	s := gocron.NewScheduler(time.Local)
 
-	s.Every(1).Day().At("21:00").Do(func() {
-		fmt.Println("RUN")
+	s.Every(1).Day().At("00:30").Do(func() {
+		tempFile, _ := fileRepo.GetAllTemp()
+
+		for _, s := range tempFile {
+			fileRepo.DeleteByID(context.Background(), s.ID)
+			fileRepo.Deletefile(context.Background(), s.Name)
+		}
 	})
 
 	s.StartBlocking()

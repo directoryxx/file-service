@@ -65,7 +65,7 @@ func RunApi() {
 	defer kafkaProducer.Close()
 
 	log.Println("[INFO] Loading Repository")
-	fileRepo := repository.NewFileRepository(dbSQL)
+	fileRepo := repository.NewFileRepository(dbSQL, minioClient)
 	userRepo := repository.NewUserRepository(redisConnect, kafkaProducer)
 
 	log.Println("[INFO] Loading Usecase")
@@ -74,7 +74,7 @@ func RunApi() {
 	log.Println("[INFO] Loading Controller")
 	fileController := controller.NewFileController(fileUsecase, minioClient)
 
-	// log.Println("[INFO] Loading Middleware")
+	log.Println("[INFO] Loading Middleware")
 	SetMiddleware(app, userRepo)
 
 	log.Println("[INFO] Loading Routes")

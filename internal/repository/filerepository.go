@@ -4,7 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"file/internal/domain"
+	"fmt"
+	"log"
+	"os"
 	"time"
+
+	"github.com/minio/minio-go/v7"
 )
 
 // UserRepository represent the user's repository contract
@@ -12,16 +17,21 @@ type FileRepository interface {
 	Insert(ctx context.Context, file *domain.File) (*domain.File, error)
 	GetOneByID(ctx context.Context, id int) (*domain.File, error)
 	GetOneByName(ctx context.Context, name string) (*domain.File, error)
+	GetAllTemp() ([]domain.File, error)
+	Deletefile(ctx context.Context, name string)
+	DeleteByID(ctx context.Context, id int) error
 }
 
 type FileRepositoryImpl struct {
-	DB *sql.DB
+	DB    *sql.DB
+	Minio *minio.Client
 }
 
 // NewMysqlAuthorRepository will create an implementation of author.Repository
-func NewFileRepository(db *sql.DB) FileRepository {
+func NewFileRepository(db *sql.DB, minio *minio.Client) FileRepository {
 	return &FileRepositoryImpl{
-		DB: db,
+		DB:    db,
+		Minio: minio,
 	}
 }
 
@@ -110,4 +120,39 @@ func (fr *FileRepositoryImpl) GetOneByName(context context.Context, name string)
 	}
 
 	return &file, nil
+}
+
+func (fr *FileRepositoryImpl) GetAllTemp() ([]domain.File, error) {
+	rows, err := fr.DB.Query("SELECT id, uuid, name, url, user_id, is_temp FROM files WHERE is_temp=1")
+
+	if err != nil {
+		return nil, err
+	}
+
+	files := []domain.File{}
+
+	for rows.Next() {
+		file := domain.File{}
+		// create an instance of `Bird` and write the result of the current row into it
+		if err := rows.Scan(&file.ID, &file.Uuid, &file.Name, &file.Url, &file.UserID, &file.IsTemp); err != nil {
+			log.Fatalf("could not scan row: %v", err)
+		}
+		// append the current instance to the slice of birds
+		files = append(files, file)
+	}
+
+	return files, nil
+}
+
+func (fr *FileRepositoryImpl) Deletefile(ctx context.Context, name string) {
+	bucketName := os.Getenv("MINIO_BUCKET")
+	err := fr.Minio.RemoveObject(ctx, bucketName, name, minio.RemoveObjectOptions{})
+	fmt.Println(err)
+}
+
+func (fr *FileRepositoryImpl) DeleteByID(ctx context.Context, id int) (err error) {
+	stmt, err := fr.DB.PrepareContext(ctx, "DELETE FROM files WHERE id=$1")
+	stmt.Exec(id)
+
+	return err
 }
