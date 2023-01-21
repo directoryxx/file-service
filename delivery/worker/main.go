@@ -12,8 +12,6 @@ import (
 	"log"
 	"sync"
 	"time"
-
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 func RunWorker() {
@@ -49,16 +47,27 @@ func RunWorker() {
 
 	wg.Add(2)
 
-	// go consumerKafkaAuthLogout("auth-logout", kafkaConn, userController, &wg)
-	go consumerKafkaAuthLogin("auth-login", kafkaConn, userController, &wg)
-	// go consumerKafkaAuth("auth", kafkaConn, userController, &wg)
+	// go func() {
+	// 	consumerKafkaAuthLogout("auth-logout", kafkaConn, userController, &wg)
+	// }()
+	// go func() {
+	// 	consumerKafkaAuthLogin("auth-login", kafkaConn, userController, &wg)
+	// }()
+
+	go consumerKafkaAuthLogin("auth-login", userController, &wg)
+	go consumerKafkaAuthLogout("auth-logout", userController, &wg)
+
+	// // go consumerKafkaAuth("auth", kafkaConn, userController, &wg)
 
 	fmt.Println("Waiting for goroutines to finish...")
 	wg.Wait()
+	kafkaConn.Close()
 	fmt.Println("Done!")
 }
 
-func consumerKafkaAuthLogout(topic string, kafkaConsumer *kafka.Consumer, userController controller.UserController, wg *sync.WaitGroup) {
+func consumerKafkaAuthLogout(topic string, userController controller.UserController, wg *sync.WaitGroup) {
+	log.Println("[INFO] Loading Kafka Consumer Auth Logout")
+	kafkaConsumer, _ := infrastructure.ConnectKafkaConsumer()
 	kafkaConsumer.SubscribeTopics([]string{topic}, nil)
 
 	defer wg.Done()
@@ -78,10 +87,13 @@ func consumerKafkaAuthLogout(topic string, kafkaConsumer *kafka.Consumer, userCo
 		}
 	}
 
-	kafkaConsumer.Close()
+	// kafkaConsumer.Close()
+	defer kafkaConsumer.Close()
 }
 
-func consumerKafkaAuthLogin(topic string, kafkaConsumer *kafka.Consumer, userController controller.UserController, wg *sync.WaitGroup) {
+func consumerKafkaAuthLogin(topic string, userController controller.UserController, wg *sync.WaitGroup) {
+	log.Println("[INFO] Loading Kafka Consumer Auth Login")
+	kafkaConsumer, _ := infrastructure.ConnectKafkaConsumer()
 	kafkaConsumer.SubscribeTopics([]string{topic}, nil)
 
 	defer wg.Done()
@@ -102,7 +114,7 @@ func consumerKafkaAuthLogin(topic string, kafkaConsumer *kafka.Consumer, userCon
 		}
 	}
 
-	kafkaConsumer.Close()
+	defer kafkaConsumer.Close()
 }
 
 // func consumerKafkaFile(topic string, kafkaConsumer *kafka.Consumer, mailController controller.MailController, wg *sync.WaitGroup) {
