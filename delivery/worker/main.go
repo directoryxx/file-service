@@ -2,8 +2,10 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"file/infrastructure"
 	"file/internal/controller"
+	"file/internal/domain"
 	"file/internal/repository"
 	"file/internal/usecase"
 	"fmt"
@@ -18,7 +20,7 @@ func RunWorker() {
 	log.Println("[INFO] Starting File Service on port")
 
 	log.Println("[INFO] Loading Kafka Consumer")
-	kafkaConn, err := infrastructure.ConnectKafkaConsumer()
+	kafkaConn, _ := infrastructure.ConnectKafkaConsumer()
 
 	log.Println("[INFO] Loading Redis")
 	redisConnect := infrastructure.OpenRedis()
@@ -45,16 +47,18 @@ func RunWorker() {
 
 	var wg sync.WaitGroup
 
-	wg.Add(1)
+	wg.Add(2)
 
-	go consumerKafkaAuth("file", kafkaConn, userController, &wg)
+	// go consumerKafkaAuthLogout("auth-logout", kafkaConn, userController, &wg)
+	go consumerKafkaAuthLogin("auth-login", kafkaConn, userController, &wg)
+	// go consumerKafkaAuth("auth", kafkaConn, userController, &wg)
 
 	fmt.Println("Waiting for goroutines to finish...")
 	wg.Wait()
 	fmt.Println("Done!")
 }
 
-func consumerKafkaAuth(topic string, kafkaConsumer *kafka.Consumer, userController controller.UserController, wg *sync.WaitGroup) {
+func consumerKafkaAuthLogout(topic string, kafkaConsumer *kafka.Consumer, userController controller.UserController, wg *sync.WaitGroup) {
 	kafkaConsumer.SubscribeTopics([]string{topic}, nil)
 
 	defer wg.Done()
@@ -65,8 +69,36 @@ func consumerKafkaAuth(topic string, kafkaConsumer *kafka.Consumer, userControll
 	for run {
 		msg, err := kafkaConsumer.ReadMessage(time.Second)
 		if err == nil {
-			fmt.Printf("Message on %s: %s\n", msg.TopicPartition, string(msg.Value))
-			userController.DeleteUUID(context.TODO(), string(msg.Value))
+			action := domain.PublishAuthLogout{}
+			json.Unmarshal(msg.Value, &action)
+			if action.Action == "logout" {
+				fmt.Println(action.Data.Uuid + " deleted")
+				userController.DeleteUUID(context.Background(), action.Data.Uuid)
+			}
+		}
+	}
+
+	kafkaConsumer.Close()
+}
+
+func consumerKafkaAuthLogin(topic string, kafkaConsumer *kafka.Consumer, userController controller.UserController, wg *sync.WaitGroup) {
+	kafkaConsumer.SubscribeTopics([]string{topic}, nil)
+
+	defer wg.Done()
+
+	// A signal handler or similar could be used to set this to false to break the loop.
+	run := true
+
+	for run {
+		msg, err := kafkaConsumer.ReadMessage(time.Second)
+		if err == nil {
+			action := domain.PublishAuthLogin{}
+			json.Unmarshal(msg.Value, &action)
+			if action.Action == "login" {
+				// fmt.Println(action)
+				fmt.Println(action.Data.Uuid + " saved")
+				userController.RememberUUID(context.Background(), &action)
+			}
 		}
 	}
 

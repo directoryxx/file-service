@@ -2,12 +2,14 @@ package controller
 
 import (
 	"context"
+	"file/internal/domain"
 	"file/internal/usecase"
 )
 
 // interface
 type UserController interface {
 	DeleteUUID(ctx context.Context, uuid string)
+	RememberUUID(ctx context.Context, user *domain.PublishAuthLogin)
 }
 
 // implement interface
@@ -25,4 +27,8 @@ func NewUserController(userUsecase usecase.UserUseCase) UserController {
 
 func (uc *UserControllerImpl) DeleteUUID(ctx context.Context, uuid string) {
 	uc.UserUsecase.DeleteUUID(ctx, uuid)
+}
+
+func (uc *UserControllerImpl) RememberUUID(ctx context.Context, user *domain.PublishAuthLogin) {
+	uc.UserUsecase.RememberUUID(ctx, user)
 }
