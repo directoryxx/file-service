@@ -32,6 +32,8 @@ ENV TZ=Asia/Jakarta
 
 RUN mkdir /app
 
+RUN mkdir /migration
+
 COPY ./docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 COPY --from=builder /app/build/fileApp /app
@@ -42,7 +44,9 @@ COPY --from=builder /app/build/fileAppWorker /app
 
 COPY --from=builder /go/bin/migrate /bin/migrate
 
-COPY ./.env /.env
+COPY ./db/ /migration
+
+# COPY ./.env /.env
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
